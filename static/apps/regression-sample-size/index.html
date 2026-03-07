@@ -100,7 +100,7 @@
     /* ── Main grid ── */
     .main-grid {
       display: grid;
-      grid-template-columns: 1fr 340px;
+      grid-template-columns: 1fr 360px;
       gap: 1.25rem;
       margin-bottom: 1.25rem;
     }
@@ -127,24 +127,25 @@
     .reg-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
     .reg-table th {
       text-align: left;
-      padding: 0.4rem 0.5rem;
+      padding: 0.4rem 0.4rem;
       font-weight: 600;
       color: #495057;
       border-bottom: 2px solid #dee2e6;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
     }
     .reg-table td {
-      padding: 0.45rem 0.5rem;
+      padding: 0.45rem 0.4rem;
       border-bottom: 1px solid #f1f3f5;
       font-variant-numeric: tabular-nums;
     }
     .reg-table tr:last-child td { border-bottom: none; }
     .label-cell { color: #495057; }
-    .value-cell { font-family: monospace; font-size: 0.92rem; }
+    .value-cell { font-family: monospace; font-size: 0.88rem; }
+    .ci-cell    { font-family: monospace; font-size: 0.82rem; color: #555; }
 
     .pval-cell {
       font-weight: 700;
@@ -267,6 +268,7 @@
             <th>Term</th>
             <th>Coef.</th>
             <th>Std. Err.</th>
+            <th>95% CI</th>
             <th>t-stat</th>
             <th>p-value</th>
           </tr>
@@ -276,6 +278,7 @@
             <td class="label-cell">(Intercept)</td>
             <td class="value-cell" id="b0val">–</td>
             <td class="value-cell" id="b0se">–</td>
+            <td class="ci-cell"   id="b0ci">–</td>
             <td class="value-cell" id="b0t">–</td>
             <td id="b0p">–</td>
           </tr>
@@ -283,6 +286,7 @@
             <td class="label-cell">Left–right scale</td>
             <td class="value-cell" id="b1val">–</td>
             <td class="value-cell" id="b1se">–</td>
+            <td class="ci-cell"   id="b1ci">–</td>
             <td class="value-cell" id="b1t">–</td>
             <td id="b1p">–</td>
           </tr>
@@ -314,6 +318,7 @@
     <h2>Why does sample size matter?</h2>
     <ul>
       <li><strong>Standard error shrinks</strong> as n grows: SE(β̂) ∝ 1/√n. More data → tighter estimates.</li>
+      <li><strong>Confidence interval narrows</strong>: the 95% CI is β̂ ± t* × SE(β̂). Watch it shrink as you increase n.</li>
       <li><strong>t-statistic grows</strong>: t = β̂ / SE(β̂). The same slope becomes more detectable with larger n.</li>
       <li><strong>P-value falls</strong> as the t-statistic moves further into the tail of the t-distribution.</li>
       <li>With a <em>tiny</em> sample the true relationship may appear non-significant by chance (Type II error).</li>
@@ -321,42 +326,14 @@
     </ul>
     <div class="key-formula">
       SE(β̂₁) = √[ Σ(yᵢ − ŷᵢ)² / (n−2) ] / √[ Σ(xᵢ − x̄)² ]
+      &nbsp;&nbsp;|&nbsp;&nbsp;
+      95% CI: β̂₁ ± t*(df) × SE(β̂₁)
     </div>
     <ul>
+      <li>The shaded band on the scatter plot shows the 95% confidence interval for the fitted mean at each x value.</li>
       <li>Significance thresholds: p &lt; .001 ★★★ &nbsp; p &lt; .01 ★★ &nbsp; p &lt; .05 ★ &nbsp; p &lt; .10 † &nbsp; p ≥ .10 n.s.</li>
       <li>The <em>true</em> slope used to generate these data is β₁ = −0.15 with σ = 0.9 noise around a mean trust of 3.8 at the political centre.</li>
     </ul>
-  </div>
-
-
-  <!-- ── CI Visualization ── -->
-  <div style="border-top: 2px solid #dee2e6; margin-top: 2rem; padding-top: 2rem;">
-    <div class="scenario" style="background:#e8f4fd; border-color:#0d6efd;">
-      <strong>Part 2 – Confidence intervals around the regression line.</strong>
-      The shaded band shows the 95% confidence interval for the <em>fitted line</em>.
-      With smaller samples the band widens, reflecting greater uncertainty about where the true line lies.
-      Notice the hyperbolic shape: uncertainty is lowest near the mean of x and grows toward the extremes.
-      Use the same slider above to change n.
-    </div>
-
-    <div class="card" style="margin-bottom: 1.25rem;">
-      <h2>Regression line with 95% confidence band</h2>
-      <canvas id="ciChart" height="300"></canvas>
-      <div class="model-strip" id="ciModelStrip" style="margin-top:0.75rem">–</div>
-    </div>
-
-    <div class="explainer">
-      <h2>What does the confidence band show?</h2>
-      <ul>
-        <li>The band is the 95% CI for the <em>expected value of y</em> at each x: ŷ ± t* × SE<sub>fit</sub></li>
-        <li>SE<sub>fit</sub>(x₀) = σ̂ × √[ 1/n + (x₀ − x̄)² / Σ(xᵢ − x̄)² ] — grows away from x̄ and shrinks as n grows.</li>
-        <li>Small n → large σ̂, fewer df → larger t* — both widen the band.</li>
-        <li>Large n → the band collapses toward the fitted line; the line is estimated very precisely.</li>
-      </ul>
-      <div class="key-formula">
-        95% CI: ŷ₀ ± t*(df, 0.025) × σ̂ × √[ 1/n + (x₀ − x̄)² / Sxx ]
-      </div>
-    </div>
   </div>
 
 </div><!-- /container -->
@@ -440,13 +417,11 @@ function ols(xs, ys) {
   const r2   = 1 - sse / sst;
   const sigma = Math.sqrt(mse);
 
-  return { b0, b1, se0, se1, t0, t1, r2, sigma, df: n - 2, sxx, xBar };
+  return { b0, b1, se0, se1, t0, t1, r2, sigma, df: n - 2, mse, xBar, sxx };
 }
 
 // Two-tailed p-value from t via regularised incomplete beta (accurate)
-// Uses a continued-fraction / series approximation (Abramowitz & Stegun)
 function tCDF(t, df) {
-  // P(T <= t) for Student t with df degrees of freedom
   const x = df / (df + t * t);
   return 1 - 0.5 * incompleteBeta(x, df / 2, 0.5);
 }
@@ -456,14 +431,23 @@ function pFromT(t, df) {
   return 2 * (1 - tCDF(absT, df));
 }
 
+// Inverse: find t such that pFromT(t, df) = p (two-tailed), via bisection
+function tQuantile(p, df) {
+  let lo = 0, hi = 100;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (pFromT(mid, df) > p) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
 // Regularised incomplete beta I_x(a, b) via continued fraction
 function incompleteBeta(x, a, b) {
   if (x <= 0) return 0;
   if (x >= 1) return 1;
-  // Use the CF representation for stability
   const lbeta = logBeta(a, b);
   const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a;
-  // Lentz's method
   return front * betaCF(x, a, b);
 }
 
@@ -492,7 +476,6 @@ function betaCF(x, a, b) {
 }
 
 function logGamma(z) {
-  // Lanczos approximation
   const g = 7;
   const c = [0.99999999999980993,676.5203681218851,-1259.1392167224028,
     771.32342877765313,-176.61502916214059,12.507343278686905,
@@ -507,16 +490,6 @@ function logGamma(z) {
 
 function logBeta(a, b) { return logGamma(a) + logGamma(b) - logGamma(a + b); }
 
-// Inverse t-distribution (upper quantile) via bisection
-function tQuantile(p, df) {
-  let lo = 0, hi = 30;
-  for (let i = 0; i < 60; i++) {
-    const mid = (lo + hi) / 2;
-    if (tCDF(mid, df) < p) lo = mid; else hi = mid;
-  }
-  return (lo + hi) / 2;
-}
-
 // ─────────────────────────────────────────────
 // Charts
 // ─────────────────────────────────────────────
@@ -528,14 +501,16 @@ const scatterChart = new Chart(scatterCtx, {
   data: {
     datasets: [
       {
+        // 0: Respondents
         label: 'Respondents',
         data: [],
         backgroundColor: 'rgba(26, 58, 92, 0.35)',
         pointRadius: 5,
         pointHoverRadius: 7,
-        order: 2,
+        order: 4,
       },
       {
+        // 1: Regression line
         label: 'Regression line',
         data: [],
         type: 'line',
@@ -543,10 +518,11 @@ const scatterChart = new Chart(scatterCtx, {
         borderWidth: 2.5,
         pointRadius: 0,
         fill: false,
-        order: 1,
+        order: 2,
         tension: 0,
       },
       {
+        // 2: True population line
         label: 'True population line',
         data: [],
         type: 'line',
@@ -555,7 +531,34 @@ const scatterChart = new Chart(scatterCtx, {
         borderDash: [6, 4],
         pointRadius: 0,
         fill: false,
-        order: 0,
+        order: 1,
+        tension: 0,
+      },
+      {
+        // 3: CI upper bound
+        label: '95% CI',
+        data: [],
+        type: 'line',
+        borderColor: 'rgba(230, 57, 70, 0.25)',
+        borderWidth: 1,
+        borderDash: [3, 3],
+        pointRadius: 0,
+        fill: '+1',
+        backgroundColor: 'rgba(230, 57, 70, 0.10)',
+        order: 3,
+        tension: 0,
+      },
+      {
+        // 4: CI lower bound (fills back to dataset 3)
+        label: '',
+        data: [],
+        type: 'line',
+        borderColor: 'rgba(230, 57, 70, 0.25)',
+        borderWidth: 1,
+        borderDash: [3, 3],
+        pointRadius: 0,
+        fill: false,
+        order: 3,
         tension: 0,
       }
     ]
@@ -563,10 +566,20 @@ const scatterChart = new Chart(scatterCtx, {
   options: {
     animation: { duration: 200 },
     plugins: {
-      legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } },
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 14,
+          font: { size: 12 },
+          filter: item => item.text !== ''  // hide the duplicate CI lower label
+        }
+      },
       tooltip: {
         callbacks: {
-          label: ctx => `Left–right: ${ctx.parsed.x.toFixed(2)}, Trust: ${ctx.parsed.y.toFixed(2)}`
+          label: ctx => {
+            if (ctx.datasetIndex === 3 || ctx.datasetIndex === 4) return null;
+            return `Left–right: ${ctx.parsed.x.toFixed(2)}, Trust: ${ctx.parsed.y.toFixed(2)}`;
+          }
         }
       }
     },
@@ -652,103 +665,6 @@ const pvalChart = new Chart(pvalCtx, {
   }
 });
 
-// ─────────────────────────────────────────────
-// CI chart
-// ─────────────────────────────────────────────
-const ciCtx = document.getElementById('ciChart').getContext('2d');
-
-const ciChart = new Chart(ciCtx, {
-  type: 'scatter',
-  data: {
-    datasets: [
-      {
-        label: 'Respondents',
-        data: [],
-        backgroundColor: 'rgba(26, 58, 92, 0.25)',
-        pointRadius: 4,
-        pointHoverRadius: 6,
-        order: 4,
-      },
-      {
-        label: '95% confidence band',
-        data: [],
-        type: 'line',
-        borderColor: 'rgba(26, 115, 232, 0.25)',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: '+1',
-        backgroundColor: 'rgba(26, 115, 232, 0.15)',
-        tension: 0.3,
-        order: 3,
-      },
-      {
-        label: '_ci_lower',
-        data: [],
-        type: 'line',
-        borderColor: 'rgba(26, 115, 232, 0.25)',
-        borderWidth: 1,
-        pointRadius: 0,
-        fill: false,
-        tension: 0.3,
-        order: 3,
-      },
-      {
-        label: 'Regression line',
-        data: [],
-        type: 'line',
-        borderColor: '#e63946',
-        borderWidth: 2.5,
-        pointRadius: 0,
-        fill: false,
-        order: 1,
-        tension: 0,
-      },
-      {
-        label: 'True population line',
-        data: [],
-        type: 'line',
-        borderColor: '#2a9d8f',
-        borderWidth: 2,
-        borderDash: [6, 4],
-        pointRadius: 0,
-        fill: false,
-        order: 0,
-        tension: 0,
-      }
-    ]
-  },
-  options: {
-    animation: { duration: 200 },
-    plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          boxWidth: 14,
-          font: { size: 12 },
-          filter: item => item.text !== '_ci_lower'
-        }
-      },
-      tooltip: {
-        callbacks: {
-          label: ctx => `Left–right: ${ctx.parsed.x.toFixed(2)}, Trust: ${ctx.parsed.y.toFixed(2)}`
-        }
-      }
-    },
-    scales: {
-      x: {
-        title: { display: true, text: 'Left–right self-placement (0–10)', font: { size: 13 } },
-        min: 0, max: 10,
-        grid: { color: '#f1f3f5' }
-      },
-      y: {
-        title: { display: true, text: 'Trust in news (1–5)', font: { size: 13 } },
-        min: 1, max: 5,
-        grid: { color: '#f1f3f5' }
-      }
-    }
-  }
-});
-
 // Vertical cursor line plugin
 let currentN = 50;
 
@@ -794,6 +710,10 @@ function setCell(id, cls, text) {
   el.textContent = text;
 }
 
+function fmtCI(lo, hi) {
+  return '[' + fmt(lo) + ', ' + fmt(hi) + ']';
+}
+
 function update(n) {
   currentN = n;
   document.getElementById('nDisplay').textContent = n;
@@ -803,6 +723,9 @@ function update(n) {
   const r  = ols(xs, ys);
   const p0 = pFromT(r.t0, r.df);
   const p1 = pFromT(r.t1, r.df);
+
+  // 95% CI critical value
+  const tCrit = tQuantile(0.05, r.df);
 
   // Scatter data
   scatterChart.data.datasets[0].data = xs.map((x, i) => ({ x, y: ys[i] }));
@@ -819,32 +742,20 @@ function update(n) {
     { x: 10, y: TRUE_INTERCEPT + TRUE_SLOPE * 10 }
   ];
 
-  scatterChart.update();
-
-  // CI chart update
-  const tStar = tQuantile(0.975, r.df);
-  const CI_PTS = 80;
+  // 95% CI band for fitted mean (50 points across x = 0..10)
+  const CI_STEPS = 50;
   const ciUpper = [], ciLower = [];
-  for (let i = 0; i <= CI_PTS; i++) {
-    const x0 = (i / CI_PTS) * 10;
-    const yhat = r.b0 + r.b1 * x0;
-    const seFit = r.sigma * Math.sqrt(1 / n + (x0 - r.xBar) ** 2 / r.sxx);
-    const margin = tStar * seFit;
-    ciUpper.push({ x: x0, y: yhat + margin });
-    ciLower.push({ x: x0, y: yhat - margin });
+  for (let i = 0; i <= CI_STEPS; i++) {
+    const x = i * 10 / CI_STEPS;
+    const seFit = Math.sqrt(r.mse * (1/n + (x - r.xBar) ** 2 / r.sxx));
+    const yhat  = r.b0 + r.b1 * x;
+    ciUpper.push({ x, y: yhat + tCrit * seFit });
+    ciLower.push({ x, y: yhat - tCrit * seFit });
   }
-  ciChart.data.datasets[0].data = xs.map((x, i) => ({ x, y: ys[i] }));
-  ciChart.data.datasets[1].data = ciUpper;
-  ciChart.data.datasets[2].data = ciLower;
-  ciChart.data.datasets[3].data = [{ x: 0, y: r.b0 }, { x: 10, y: r.b0 + r.b1 * 10 }];
-  ciChart.data.datasets[4].data = [{ x: 0, y: TRUE_INTERCEPT }, { x: 10, y: TRUE_INTERCEPT + TRUE_SLOPE * 10 }];
-  ciChart.update();
+  scatterChart.data.datasets[3].data = ciUpper;
+  scatterChart.data.datasets[4].data = ciLower;
 
-  const ciHalfWidth = tStar * r.sigma * Math.sqrt(1 / n);
-  document.getElementById('ciModelStrip').innerHTML =
-    `n = <span>${n}</span> &nbsp;|&nbsp; ` +
-    `t* (df=${r.df}) = <span>${fmt(tStar, 3)}</span> &nbsp;|&nbsp; ` +
-    `CI half-width at x̄: <span>±${fmt(ciHalfWidth, 3)}</span>`;
+  scatterChart.update();
 
   // Fitted equation & R²
   const sign = r.b1 >= 0 ? '+' : '−';
@@ -855,12 +766,14 @@ function update(n) {
   // Table
   document.getElementById('b0val').textContent = fmt(r.b0);
   document.getElementById('b0se').textContent  = fmt(r.se0);
+  document.getElementById('b0ci').textContent  = fmtCI(r.b0 - tCrit * r.se0, r.b0 + tCrit * r.se0);
   document.getElementById('b0t').textContent   = fmt(r.t0);
   const [cls0, txt0] = pvalClass(p0);
   setCell('b0p', cls0, txt0);
 
   document.getElementById('b1val').textContent = fmt(r.b1);
   document.getElementById('b1se').textContent  = fmt(r.se1);
+  document.getElementById('b1ci').textContent  = fmtCI(r.b1 - tCrit * r.se1, r.b1 + tCrit * r.se1);
   document.getElementById('b1t').textContent   = fmt(r.t1);
   const [cls1, txt1] = pvalClass(p1);
   setCell('b1p', cls1, txt1);
