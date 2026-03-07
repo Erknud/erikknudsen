@@ -66,7 +66,7 @@ sections:
         - certificate_url: ''
           date_end: ''
           date_start: '2021-01-01'
-          description: 'PI of NEWSREC – The Double-edged Sword of News Recommenders' Impact on Democracy. Awarded through the Research Projects for Young Talents program of the Research Council of Norway.'
+          description: "PI of NEWSREC – The Double-edged Sword of News Recommenders' Impact on Democracy. Awarded through the Research Projects for Young Talents program of the Research Council of Norway."
           organization: Research Council of Norway
           organization_url: 'https://www.forskningsradet.no/en/'
           title: NEWSREC Project Grant (Young Talents)
