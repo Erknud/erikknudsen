@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sample Size & Regression – Interactive Demo</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8f9fa;
+      color: #212529;
+      min-height: 100vh;
+    }
+
+    header {
+      background: #1a3a5c;
+      color: #fff;
+      padding: 1.25rem 2rem;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; }
+    header p  { font-size: 0.9rem; opacity: 0.85; margin-top: 0.25rem; }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem;
+    }
+
+    /* ── Scenario box ── */
+    .scenario {
+      background: #e8f0fe;
+      border-left: 4px solid #1a73e8;
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.92rem;
+      line-height: 1.6;
+    }
+    .scenario strong { color: #1a3a5c; }
+
+    /* ── Slider section ── */
+    .slider-section {
+      background: #fff;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      margin-bottom: 1.5rem;
+    }
+    .slider-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .slider-label { font-weight: 600; font-size: 1rem; }
+    .n-badge {
+      background: #1a3a5c;
+      color: #fff;
+      border-radius: 999px;
+      padding: 0.25rem 0.9rem;
+      font-size: 1rem;
+      font-weight: 700;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    input[type=range] {
+      width: 100%;
+      accent-color: #1a3a5c;
+      cursor: pointer;
+      height: 6px;
+    }
+    .tick-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #6c757d;
+      margin-top: 0.25rem;
+    }
+
+    .resample-btn {
+      display: block;
+      margin: 0.9rem auto 0;
+      padding: 0.45rem 1.4rem;
+      background: #1a3a5c;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .resample-btn:hover { background: #24527a; }
+
+    /* ── Main grid ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 780px) {
+      .main-grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      padding: 1.25rem 1.5rem;
+    }
+    .card h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #1a3a5c;
+      margin-bottom: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+
+    /* ── Regression table ── */
+    .reg-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+    .reg-table th {
+      text-align: left;
+      padding: 0.4rem 0.5rem;
+      font-weight: 600;
+      color: #495057;
+      border-bottom: 2px solid #dee2e6;
+      font-size: 0.8rem;
+    }
+    .reg-table td {
+      padding: 0.45rem 0.5rem;
+      border-bottom: 1px solid #f1f3f5;
+      font-variant-numeric: tabular-nums;
+    }
+    .reg-table tr:last-child td { border-bottom: none; }
+    .label-cell { color: #495057; }
+    .value-cell { font-family: monospace; font-size: 0.92rem; }
+
+    .pval-cell {
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .sig3  { background: #d4edda; color: #155724; }
+    .sig5  { background: #cce5ff; color: #004085; }
+    .sig10 { background: #fff3cd; color: #856404; }
+    .ns    { background: #f8d7da; color: #721c24; }
+
+    /* ── Model info strip ── */
+    .model-strip {
+      font-size: 0.82rem;
+      color: #6c757d;
+      margin-top: 1rem;
+      line-height: 1.5;
+    }
+    .model-strip span { font-family: monospace; }
+
+    /* ── P-value evolution chart ── */
+    .evolution-card {
+      margin-bottom: 1.25rem;
+    }
+
+    /* ── Interpretation box ── */
+    .interp {
+      border-radius: 8px;
+      padding: 0.85rem 1.1rem;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      margin-top: 1rem;
+    }
+    .interp.sig   { background: #d4edda; border-left: 4px solid #28a745; }
+    .interp.marg  { background: #fff3cd; border-left: 4px solid #ffc107; }
+    .interp.insig { background: #f8d7da; border-left: 4px solid #dc3545; }
+    .interp strong { display: block; margin-bottom: 0.25rem; }
+
+    /* ── Explainer ── */
+    .explainer {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.08);
+      padding: 1.25rem 1.5rem;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+    .explainer h2 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #1a3a5c;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+      margin-bottom: 0.75rem;
+    }
+    .explainer ul { padding-left: 1.2rem; }
+    .explainer li { margin-bottom: 0.4rem; }
+    .key-formula {
+      background: #f1f3f5;
+      border-radius: 6px;
+      padding: 0.6rem 0.9rem;
+      font-family: monospace;
+      font-size: 0.88rem;
+      margin: 0.75rem 0;
+      color: #343a40;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Sample Size &amp; Regression Results</h1>
+  <p>An interactive demonstration for students of political methodology</p>
+</header>
+
+<div class="container">
+
+  <!-- Scenario -->
+  <div class="scenario">
+    <strong>Hypothetical study:</strong> We are examining whether left–right self-placement (0 = far left, 10 = far right)
+    predicts <em>trust in news media</em> (1 = no trust at all, 5 = complete trust).
+    The <em>true</em> population relationship is a modest negative slope (β ≈ −0.15):
+    respondents who place themselves further right tend to report slightly lower trust in news.
+    Use the slider below to explore how the <strong>same underlying relationship</strong> looks
+    at different sample sizes.
+  </div>
+
+  <!-- Slider -->
+  <div class="slider-section">
+    <div class="slider-header">
+      <span class="slider-label">Sample size (n)</span>
+      <span class="n-badge" id="nDisplay">50</span>
+    </div>
+    <input type="range" id="nSlider" min="10" max="1000" step="1" value="50" />
+    <div class="tick-row">
+      <span>10</span><span>100</span><span>200</span><span>400</span><span>600</span><span>800</span><span>1000</span>
+    </div>
+    <button class="resample-btn" id="resampleBtn">↺ Draw new random sample</button>
+  </div>
+
+  <!-- Main grid: scatter + stats -->
+  <div class="main-grid">
+
+    <!-- Scatter plot -->
+    <div class="card">
+      <h2>Scatter plot with regression line</h2>
+      <canvas id="scatterChart" height="300"></canvas>
+      <div class="model-strip">
+        Fitted: <span id="fittedEq">–</span>
+        &nbsp;|&nbsp; R² = <span id="r2display">–</span>
+      </div>
+    </div>
+
+    <!-- Regression output -->
+    <div class="card">
+      <h2>Regression output</h2>
+      <table class="reg-table">
+        <thead>
+          <tr>
+            <th>Term</th>
+            <th>Coef.</th>
+            <th>Std. Err.</th>
+            <th>t-stat</th>
+            <th>p-value</th>
+          </tr>
+        </thead>
+        <tbody id="regTableBody">
+          <tr>
+            <td class="label-cell">(Intercept)</td>
+            <td class="value-cell" id="b0val">–</td>
+            <td class="value-cell" id="b0se">–</td>
+            <td class="value-cell" id="b0t">–</td>
+            <td id="b0p">–</td>
+          </tr>
+          <tr>
+            <td class="label-cell">Left–right scale</td>
+            <td class="value-cell" id="b1val">–</td>
+            <td class="value-cell" id="b1se">–</td>
+            <td class="value-cell" id="b1t">–</td>
+            <td id="b1p">–</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div id="interpBox" class="interp insig" style="margin-top:1rem">
+        <strong>Interpretation</strong>
+        <span id="interpText">Adjust the slider to see results.</span>
+      </div>
+
+      <div class="model-strip" style="margin-top:0.75rem">
+        n = <span id="nInfo">–</span> &nbsp;|&nbsp;
+        df = <span id="dfInfo">–</span> &nbsp;|&nbsp;
+        σ̂ = <span id="sigmaInfo">–</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- P-value evolution -->
+  <div class="card evolution-card">
+    <h2>P-value of slope across all sample sizes (1 → current n)</h2>
+    <canvas id="pvalChart" height="160"></canvas>
+  </div>
+
+  <!-- Explainer -->
+  <div class="explainer">
+    <h2>Why does sample size matter?</h2>
+    <ul>
+      <li><strong>Standard error shrinks</strong> as n grows: SE(β̂) ∝ 1/√n. More data → tighter estimates.</li>
+      <li><strong>t-statistic grows</strong>: t = β̂ / SE(β̂). The same slope becomes more detectable with larger n.</li>
+      <li><strong>P-value falls</strong> as the t-statistic moves further into the tail of the t-distribution.</li>
+      <li>With a <em>tiny</em> sample the true relationship may appear non-significant by chance (Type II error).</li>
+      <li>With a <em>huge</em> sample even a trivially small coefficient will be statistically significant—always report effect sizes!</li>
+    </ul>
+    <div class="key-formula">
+      SE(β̂₁) = √[ Σ(yᵢ − ŷᵢ)² / (n−2) ] / √[ Σ(xᵢ − x̄)² ]
+    </div>
+    <ul>
+      <li>Significance thresholds: p &lt; .001 ★★★ &nbsp; p &lt; .01 ★★ &nbsp; p &lt; .05 ★ &nbsp; p &lt; .10 † &nbsp; p ≥ .10 n.s.</li>
+      <li>The <em>true</em> slope used to generate these data is β₁ = −0.15 with σ = 0.9 noise around a mean trust of 3.8 at the political centre.</li>
+    </ul>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+// ─────────────────────────────────────────────
+// Seeded PRNG (Mulberry32) for reproducible base data
+// ─────────────────────────────────────────────
+function mulberry32(seed) {
+  return function() {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    var t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// Box-Muller normal from uniform PRNG
+function makeNormal(rng) {
+  return function() {
+    var u = 0, v = 0;
+    while (u === 0) u = rng();
+    while (v === 0) v = rng();
+    return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+  };
+}
+
+// Generate the master pool (n=1000) with a fixed seed
+const POOL_SIZE = 1000;
+const TRUE_SLOPE = -0.15;
+const TRUE_INTERCEPT = 4.1;   // trust at x=0 (far left)
+const NOISE_SD = 0.9;
+
+let masterX = [], masterY = [];
+let currentSeed = 42;
+
+function generatePool(seed) {
+  const rng = mulberry32(seed);
+  const rnorm = makeNormal(rng);
+  masterX = [];
+  masterY = [];
+  for (let i = 0; i < POOL_SIZE; i++) {
+    const x = rng() * 10;           // Uniform(0,10)
+    const noise = rnorm() * NOISE_SD;
+    let y = TRUE_INTERCEPT + TRUE_SLOPE * x + noise;
+    y = Math.max(1, Math.min(5, y)); // clamp to scale
+    masterX.push(x);
+    masterY.push(y);
+  }
+}
+
+generatePool(currentSeed);
+
+// ─────────────────────────────────────────────
+// OLS regression helpers
+// ─────────────────────────────────────────────
+function ols(xs, ys) {
+  const n = xs.length;
+  const xBar = xs.reduce((a, b) => a + b, 0) / n;
+  const yBar = ys.reduce((a, b) => a + b, 0) / n;
+
+  let sxx = 0, sxy = 0;
+  for (let i = 0; i < n; i++) {
+    sxx += (xs[i] - xBar) ** 2;
+    sxy += (xs[i] - xBar) * (ys[i] - yBar);
+  }
+  const b1 = sxy / sxx;
+  const b0 = yBar - b1 * xBar;
+
+  let sse = 0, sst = 0;
+  for (let i = 0; i < n; i++) {
+    const yhat = b0 + b1 * xs[i];
+    sse += (ys[i] - yhat) ** 2;
+    sst += (ys[i] - yBar) ** 2;
+  }
+  const mse  = sse / (n - 2);
+  const se1  = Math.sqrt(mse / sxx);
+  const se0  = Math.sqrt(mse * (1/n + xBar**2/sxx));
+  const t1   = b1 / se1;
+  const t0   = b0 / se0;
+  const r2   = 1 - sse / sst;
+  const sigma = Math.sqrt(mse);
+
+  return { b0, b1, se0, se1, t0, t1, r2, sigma, df: n - 2 };
+}
+
+// Two-tailed p-value from t via regularised incomplete beta (accurate)
+// Uses a continued-fraction / series approximation (Abramowitz & Stegun)
+function tCDF(t, df) {
+  // P(T <= t) for Student t with df degrees of freedom
+  const x = df / (df + t * t);
+  return 1 - 0.5 * incompleteBeta(x, df / 2, 0.5);
+}
+
+function pFromT(t, df) {
+  const absT = Math.abs(t);
+  return 2 * (1 - tCDF(absT, df));
+}
+
+// Regularised incomplete beta I_x(a, b) via continued fraction
+function incompleteBeta(x, a, b) {
+  if (x <= 0) return 0;
+  if (x >= 1) return 1;
+  // Use the CF representation for stability
+  const lbeta = logBeta(a, b);
+  const front = Math.exp(Math.log(x) * a + Math.log(1 - x) * b - lbeta) / a;
+  // Lentz's method
+  return front * betaCF(x, a, b);
+}
+
+function betaCF(x, a, b) {
+  const MAXIT = 200, EPS = 3e-7;
+  const qab = a + b, qap = a + 1, qam = a - 1;
+  let c = 1, d = 1 - qab * x / qap;
+  if (Math.abs(d) < 1e-30) d = 1e-30;
+  d = 1 / d;
+  let h = d;
+  for (let m = 1; m <= MAXIT; m++) {
+    const m2 = 2 * m;
+    let aa = m * (b - m) * x / ((qam + m2) * (a + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1 / d; h *= d * c;
+    aa = -(a + m) * (qab + m) * x / ((a + m2) * (qap + m2));
+    d = 1 + aa * d; if (Math.abs(d) < 1e-30) d = 1e-30;
+    c = 1 + aa / c; if (Math.abs(c) < 1e-30) c = 1e-30;
+    d = 1 / d;
+    const del = d * c;
+    h *= del;
+    if (Math.abs(del - 1) < EPS) break;
+  }
+  return h;
+}
+
+function logGamma(z) {
+  // Lanczos approximation
+  const g = 7;
+  const c = [0.99999999999980993,676.5203681218851,-1259.1392167224028,
+    771.32342877765313,-176.61502916214059,12.507343278686905,
+    -0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  if (z < 0.5) return Math.log(Math.PI) - Math.log(Math.sin(Math.PI * z)) - logGamma(1 - z);
+  z -= 1;
+  let x = c[0];
+  for (let i = 1; i < g + 2; i++) x += c[i] / (z + i);
+  const t = z + g + 0.5;
+  return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+}
+
+function logBeta(a, b) { return logGamma(a) + logGamma(b) - logGamma(a + b); }
+
+// ─────────────────────────────────────────────
+// Charts
+// ─────────────────────────────────────────────
+const scatterCtx = document.getElementById('scatterChart').getContext('2d');
+const pvalCtx    = document.getElementById('pvalChart').getContext('2d');
+
+const scatterChart = new Chart(scatterCtx, {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        label: 'Respondents',
+        data: [],
+        backgroundColor: 'rgba(26, 58, 92, 0.35)',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        order: 2,
+      },
+      {
+        label: 'Regression line',
+        data: [],
+        type: 'line',
+        borderColor: '#e63946',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        fill: false,
+        order: 1,
+        tension: 0,
+      },
+      {
+        label: 'True population line',
+        data: [],
+        type: 'line',
+        borderColor: '#2a9d8f',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        fill: false,
+        order: 0,
+        tension: 0,
+      }
+    ]
+  },
+  options: {
+    animation: { duration: 200 },
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 12 } } },
+      tooltip: {
+        callbacks: {
+          label: ctx => `Left–right: ${ctx.parsed.x.toFixed(2)}, Trust: ${ctx.parsed.y.toFixed(2)}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Left–right self-placement (0–10)', font: { size: 13 } },
+        min: 0, max: 10,
+        grid: { color: '#f1f3f5' }
+      },
+      y: {
+        title: { display: true, text: 'Trust in news (1–5)', font: { size: 13 } },
+        min: 1, max: 5,
+        grid: { color: '#f1f3f5' }
+      }
+    }
+  }
+});
+
+// Pre-compute p-values for all n from 10 to POOL_SIZE
+const pvalSeries = { labels: [], data: [] };
+for (let n = 10; n <= POOL_SIZE; n++) {
+  const r = ols(masterX.slice(0, n), masterY.slice(0, n));
+  pvalSeries.labels.push(n);
+  pvalSeries.data.push(pFromT(r.t1, r.df));
+}
+
+const pvalChart = new Chart(pvalCtx, {
+  type: 'line',
+  data: {
+    labels: pvalSeries.labels,
+    datasets: [
+      {
+        label: 'p-value of slope',
+        data: pvalSeries.data,
+        borderColor: '#1a3a5c',
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0,
+      },
+      {
+        label: 'p = .05',
+        data: pvalSeries.labels.map(() => 0.05),
+        borderColor: '#28a745',
+        borderWidth: 1.5,
+        borderDash: [5, 4],
+        pointRadius: 0,
+        fill: false,
+      },
+      {
+        label: 'p = .10',
+        data: pvalSeries.labels.map(() => 0.10),
+        borderColor: '#ffc107',
+        borderWidth: 1.5,
+        borderDash: [3, 4],
+        pointRadius: 0,
+        fill: false,
+      }
+    ]
+  },
+  options: {
+    animation: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 14, font: { size: 11 } } },
+      tooltip: { mode: 'index', intersect: false }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Sample size (n)', font: { size: 12 } },
+        ticks: {
+          maxTicksLimit: 10,
+          callback: v => pvalSeries.labels[v]
+        },
+        grid: { color: '#f1f3f5' }
+      },
+      y: {
+        title: { display: true, text: 'p-value', font: { size: 12 } },
+        min: 0, max: 1,
+        grid: { color: '#f1f3f5' },
+        ticks: { callback: v => v.toFixed(2) }
+      }
+    }
+  }
+});
+
+// Vertical cursor line plugin
+let currentN = 50;
+
+const cursorPlugin = {
+  id: 'cursor',
+  afterDraw(chart) {
+    if (currentN < 10) return;
+    const idx = currentN - 10;
+    const meta = chart.getDatasetMeta(0);
+    if (!meta.data[idx]) return;
+    const x = meta.data[idx].x;
+    const { top, bottom } = chart.chartArea;
+    const ctx = chart.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([4, 3]);
+    ctx.strokeStyle = '#e63946';
+    ctx.lineWidth = 1.5;
+    ctx.moveTo(x, top);
+    ctx.lineTo(x, bottom);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+Chart.register(cursorPlugin);
+
+// ─────────────────────────────────────────────
+// Update function
+// ─────────────────────────────────────────────
+function fmt(v, dp = 3) { return v.toFixed(dp); }
+
+function pvalClass(p) {
+  if (p < 0.001) return ['sig3',  '< .001 ★★★'];
+  if (p < 0.010) return ['sig3',  fmt(p) + ' ★★'];
+  if (p < 0.050) return ['sig5',  fmt(p) + ' ★'];
+  if (p < 0.100) return ['sig10', fmt(p) + ' †'];
+  return ['ns', fmt(p) + ' n.s.'];
+}
+
+function setCell(id, cls, text) {
+  const el = document.getElementById(id);
+  el.className = 'pval-cell ' + cls;
+  el.textContent = text;
+}
+
+function update(n) {
+  currentN = n;
+  document.getElementById('nDisplay').textContent = n;
+
+  const xs = masterX.slice(0, n);
+  const ys = masterY.slice(0, n);
+  const r  = ols(xs, ys);
+  const p0 = pFromT(r.t0, r.df);
+  const p1 = pFromT(r.t1, r.df);
+
+  // Scatter data
+  scatterChart.data.datasets[0].data = xs.map((x, i) => ({ x, y: ys[i] }));
+
+  // Regression line (fitted)
+  scatterChart.data.datasets[1].data = [
+    { x: 0,  y: r.b0 },
+    { x: 10, y: r.b0 + r.b1 * 10 }
+  ];
+
+  // True population line
+  scatterChart.data.datasets[2].data = [
+    { x: 0,  y: TRUE_INTERCEPT },
+    { x: 10, y: TRUE_INTERCEPT + TRUE_SLOPE * 10 }
+  ];
+
+  scatterChart.update();
+
+  // Fitted equation & R²
+  const sign = r.b1 >= 0 ? '+' : '−';
+  document.getElementById('fittedEq').textContent =
+    `Trust = ${fmt(r.b0, 3)} ${sign} ${fmt(Math.abs(r.b1), 3)} × LR`;
+  document.getElementById('r2display').textContent = fmt(r.r2, 3);
+
+  // Table
+  document.getElementById('b0val').textContent = fmt(r.b0);
+  document.getElementById('b0se').textContent  = fmt(r.se0);
+  document.getElementById('b0t').textContent   = fmt(r.t0);
+  const [cls0, txt0] = pvalClass(p0);
+  setCell('b0p', cls0, txt0);
+
+  document.getElementById('b1val').textContent = fmt(r.b1);
+  document.getElementById('b1se').textContent  = fmt(r.se1);
+  document.getElementById('b1t').textContent   = fmt(r.t1);
+  const [cls1, txt1] = pvalClass(p1);
+  setCell('b1p', cls1, txt1);
+
+  // Model info strip
+  document.getElementById('nInfo').textContent     = n;
+  document.getElementById('dfInfo').textContent    = r.df;
+  document.getElementById('sigmaInfo').textContent = fmt(r.sigma);
+
+  // Interpretation box
+  const box  = document.getElementById('interpBox');
+  const text = document.getElementById('interpText');
+  const slopeDir = r.b1 < 0 ? 'negative' : 'positive';
+
+  if (p1 < 0.05) {
+    box.className = 'interp sig';
+    box.querySelector('strong').textContent = 'Statistically significant (p < .05)';
+    text.textContent =
+      `With n = ${n}, the ${slopeDir} slope (β̂ = ${fmt(r.b1)}) is statistically significant. ` +
+      `We can reject H₀: β₁ = 0 at the 5% level. ` +
+      `Each unit increase on the left–right scale is associated with a ${fmt(Math.abs(r.b1) * 1, 3)}-point ` +
+      `${r.b1 < 0 ? 'decrease' : 'increase'} in trust in news.`;
+  } else if (p1 < 0.10) {
+    box.className = 'interp marg';
+    box.querySelector('strong').textContent = 'Marginally significant (p < .10)';
+    text.textContent =
+      `With n = ${n}, the slope (β̂ = ${fmt(r.b1)}) is only marginally significant. ` +
+      `The true effect exists, but the sample is not yet large enough to detect it reliably at p < .05.`;
+  } else {
+    box.className = 'interp insig';
+    box.querySelector('strong').textContent = 'Not significant (p ≥ .10)';
+    text.textContent =
+      `With n = ${n}, the slope (β̂ = ${fmt(r.b1)}) does not reach conventional significance thresholds. ` +
+      `This does NOT mean there is no effect—the sample may simply be too small. ` +
+      `Remember: the true slope is β₁ = −0.15.`;
+  }
+
+  // Update p-value chart cursor
+  pvalChart.update();
+}
+
+// ─────────────────────────────────────────────
+// Event listeners
+// ─────────────────────────────────────────────
+const slider = document.getElementById('nSlider');
+slider.addEventListener('input', () => update(+slider.value));
+
+document.getElementById('resampleBtn').addEventListener('click', () => {
+  currentSeed = Math.floor(Math.random() * 1e9);
+  generatePool(currentSeed);
+
+  // Recompute p-value series with new data
+  for (let n = 10; n <= POOL_SIZE; n++) {
+    const r = ols(masterX.slice(0, n), masterY.slice(0, n));
+    pvalSeries.data[n - 10] = pFromT(r.t1, r.df);
+  }
+  pvalChart.data.datasets[0].data = pvalSeries.data;
+  update(+slider.value);
+});
+
+// Initial render
+update(50);
+</script>
+
+</body>
+</html>
