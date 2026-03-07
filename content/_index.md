@@ -37,7 +37,7 @@ sections:
           company: University of Bergen
           company_url: 'https://www.uib.no/en/infomedia'
           location: Bergen, Norway
-          date_start: '2022-01-01'
+          date_start: '2026-01-01'
           date_end: ''
           description: |2-
               Professor at the Department of Information Science and Media Studies. Research areas include political communication, news use, selective exposure, and affective polarization. PI of NEWSREC project. Editor-in-chief of *Norsk medietidsskrift*. Member of the Young Academy of Norway.
@@ -46,7 +46,7 @@ sections:
           company_url: 'https://www.uib.no/en/infomedia'
           location: Bergen, Norway
           date_start: '2020-01-01'
-          date_end: '2021-12-31'
+          date_end: '2025-12-31'
           description: Research on news recommender systems, trust in journalism, and polarization. Founded the Norwegian Journalism Panel and PADKOM research group at DIGSSCORE.
         - title: Postdoctoral Researcher
           company: DIGSSCORE, University of Bergen
