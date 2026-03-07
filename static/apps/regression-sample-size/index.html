@@ -328,6 +328,37 @@
     </ul>
   </div>
 
+
+  <!-- ── CI Visualization ── -->
+  <div style="border-top: 2px solid #dee2e6; margin-top: 2rem; padding-top: 2rem;">
+    <div class="scenario" style="background:#e8f4fd; border-color:#0d6efd;">
+      <strong>Part 2 – Confidence intervals around the regression line.</strong>
+      The shaded band shows the 95% confidence interval for the <em>fitted line</em>.
+      With smaller samples the band widens, reflecting greater uncertainty about where the true line lies.
+      Notice the hyperbolic shape: uncertainty is lowest near the mean of x and grows toward the extremes.
+      Use the same slider above to change n.
+    </div>
+
+    <div class="card" style="margin-bottom: 1.25rem;">
+      <h2>Regression line with 95% confidence band</h2>
+      <canvas id="ciChart" height="300"></canvas>
+      <div class="model-strip" id="ciModelStrip" style="margin-top:0.75rem">–</div>
+    </div>
+
+    <div class="explainer">
+      <h2>What does the confidence band show?</h2>
+      <ul>
+        <li>The band is the 95% CI for the <em>expected value of y</em> at each x: ŷ ± t* × SE<sub>fit</sub></li>
+        <li>SE<sub>fit</sub>(x₀) = σ̂ × √[ 1/n + (x₀ − x̄)² / Σ(xᵢ − x̄)² ] — grows away from x̄ and shrinks as n grows.</li>
+        <li>Small n → large σ̂, fewer df → larger t* — both widen the band.</li>
+        <li>Large n → the band collapses toward the fitted line; the line is estimated very precisely.</li>
+      </ul>
+      <div class="key-formula">
+        95% CI: ŷ₀ ± t*(df, 0.025) × σ̂ × √[ 1/n + (x₀ − x̄)² / Sxx ]
+      </div>
+    </div>
+  </div>
+
 </div><!-- /container -->
 
 <script>
@@ -409,7 +440,7 @@ function ols(xs, ys) {
   const r2   = 1 - sse / sst;
   const sigma = Math.sqrt(mse);
 
-  return { b0, b1, se0, se1, t0, t1, r2, sigma, df: n - 2 };
+  return { b0, b1, se0, se1, t0, t1, r2, sigma, df: n - 2, sxx, xBar };
 }
 
 // Two-tailed p-value from t via regularised incomplete beta (accurate)
@@ -475,6 +506,16 @@ function logGamma(z) {
 }
 
 function logBeta(a, b) { return logGamma(a) + logGamma(b) - logGamma(a + b); }
+
+// Inverse t-distribution (upper quantile) via bisection
+function tQuantile(p, df) {
+  let lo = 0, hi = 30;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (tCDF(mid, df) < p) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
 
 // ─────────────────────────────────────────────
 // Charts
@@ -611,6 +652,103 @@ const pvalChart = new Chart(pvalCtx, {
   }
 });
 
+// ─────────────────────────────────────────────
+// CI chart
+// ─────────────────────────────────────────────
+const ciCtx = document.getElementById('ciChart').getContext('2d');
+
+const ciChart = new Chart(ciCtx, {
+  type: 'scatter',
+  data: {
+    datasets: [
+      {
+        label: 'Respondents',
+        data: [],
+        backgroundColor: 'rgba(26, 58, 92, 0.25)',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        order: 4,
+      },
+      {
+        label: '95% confidence band',
+        data: [],
+        type: 'line',
+        borderColor: 'rgba(26, 115, 232, 0.25)',
+        borderWidth: 1,
+        pointRadius: 0,
+        fill: '+1',
+        backgroundColor: 'rgba(26, 115, 232, 0.15)',
+        tension: 0.3,
+        order: 3,
+      },
+      {
+        label: '_ci_lower',
+        data: [],
+        type: 'line',
+        borderColor: 'rgba(26, 115, 232, 0.25)',
+        borderWidth: 1,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3,
+        order: 3,
+      },
+      {
+        label: 'Regression line',
+        data: [],
+        type: 'line',
+        borderColor: '#e63946',
+        borderWidth: 2.5,
+        pointRadius: 0,
+        fill: false,
+        order: 1,
+        tension: 0,
+      },
+      {
+        label: 'True population line',
+        data: [],
+        type: 'line',
+        borderColor: '#2a9d8f',
+        borderWidth: 2,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        fill: false,
+        order: 0,
+        tension: 0,
+      }
+    ]
+  },
+  options: {
+    animation: { duration: 200 },
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          boxWidth: 14,
+          font: { size: 12 },
+          filter: item => item.text !== '_ci_lower'
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: ctx => `Left–right: ${ctx.parsed.x.toFixed(2)}, Trust: ${ctx.parsed.y.toFixed(2)}`
+        }
+      }
+    },
+    scales: {
+      x: {
+        title: { display: true, text: 'Left–right self-placement (0–10)', font: { size: 13 } },
+        min: 0, max: 10,
+        grid: { color: '#f1f3f5' }
+      },
+      y: {
+        title: { display: true, text: 'Trust in news (1–5)', font: { size: 13 } },
+        min: 1, max: 5,
+        grid: { color: '#f1f3f5' }
+      }
+    }
+  }
+});
+
 // Vertical cursor line plugin
 let currentN = 50;
 
@@ -682,6 +820,31 @@ function update(n) {
   ];
 
   scatterChart.update();
+
+  // CI chart update
+  const tStar = tQuantile(0.975, r.df);
+  const CI_PTS = 80;
+  const ciUpper = [], ciLower = [];
+  for (let i = 0; i <= CI_PTS; i++) {
+    const x0 = (i / CI_PTS) * 10;
+    const yhat = r.b0 + r.b1 * x0;
+    const seFit = r.sigma * Math.sqrt(1 / n + (x0 - r.xBar) ** 2 / r.sxx);
+    const margin = tStar * seFit;
+    ciUpper.push({ x: x0, y: yhat + margin });
+    ciLower.push({ x: x0, y: yhat - margin });
+  }
+  ciChart.data.datasets[0].data = xs.map((x, i) => ({ x, y: ys[i] }));
+  ciChart.data.datasets[1].data = ciUpper;
+  ciChart.data.datasets[2].data = ciLower;
+  ciChart.data.datasets[3].data = [{ x: 0, y: r.b0 }, { x: 10, y: r.b0 + r.b1 * 10 }];
+  ciChart.data.datasets[4].data = [{ x: 0, y: TRUE_INTERCEPT }, { x: 10, y: TRUE_INTERCEPT + TRUE_SLOPE * 10 }];
+  ciChart.update();
+
+  const ciHalfWidth = tStar * r.sigma * Math.sqrt(1 / n);
+  document.getElementById('ciModelStrip').innerHTML =
+    `n = <span>${n}</span> &nbsp;|&nbsp; ` +
+    `t* (df=${r.df}) = <span>${fmt(tStar, 3)}</span> &nbsp;|&nbsp; ` +
+    `CI half-width at x̄: <span>±${fmt(ciHalfWidth, 3)}</span>`;
 
   // Fitted equation & R²
   const sign = r.b1 >= 0 ? '+' : '−';
