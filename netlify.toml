@@ -1,5 +1,5 @@
 [build]
-  command = "hugo --gc --minify -b $URL"
+  command = "cd regresjon-lab && npm ci && npm run build && cd .. && hugo --gc --minify -b $URL && cp -r regresjon-lab/dist/. public/regresjon-lab/"
   publish = "public"
 
 [build.environment]
@@ -14,6 +14,11 @@
 
 [context.branch-deploy]
   command = "hugo --gc --minify -b $DEPLOY_PRIME_URL"
+
+[[redirects]]
+  from = "/regresjon-lab/*"
+  to = "/regresjon-lab/index.html"
+  status = 200
 
 [[plugins]]
   package = "netlify-plugin-hugo-cache-resources"
